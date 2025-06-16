@@ -10,8 +10,29 @@
       padding: 20px;
       font-family: Arial, sans-serif;
       margin: 0;
+      position: relative;
     }
-    
+
+    .back-button {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 50px;
+      padding: 10px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      text-decoration: none;
+    }
+
+    .back-button:hover {
+      background-color: #0056b3;
+    }
+
     .filter-container {
       margin-bottom: 20px;
     }
@@ -115,6 +136,10 @@
 </head>
 <body>
 
+  <a href="/" class="back-button">← Volver</a>
+</head>
+<body>
+
   <div class="filter-container">
     <h2>Filtrar por Número de Parte y Revisión</h2>
     <form method="GET" action="/grafico2">
@@ -128,14 +153,14 @@
           <option value="<%= p %>" <%= p === pa6 ? 'selected' : '' %>><%= p %></option>
         <% }) %>
       </select>
-
+  
       <% if (pa6) { %>
         <label for="pa7">Revisión:</label>
         <select name="pa7" id="pa7" required onchange="this.form.submit()">
           <option value="">-- Seleccione --</option>
           <% 
-            partes.filter(p => p.pa6 === pa6).forEach(p => {
-              const rev = p.pa7 || 'N/A';
+            const revUnicas = [...new Set(partes.filter(p => p.pa6 === pa6).map(p => p.pa7 || 'N/A'))];
+            revUnicas.forEach(rev => {
           %>
             <option value="<%= rev %>" <%= rev === pa7 ? 'selected' : '' %>><%= rev %></option>
           <% }) %>
@@ -143,16 +168,17 @@
       <% } %>
     </form>
   </div>
-
+  
   <% if (datosIndividuales.length === 0) { %>
     <p>No hay datos para mostrar con los filtros seleccionados.</p>
   <% } else { %>
+  
 
     <div class="legend">
       <h3>Leyenda de Reglas Violadas:</h3>
       <div class="legend-item"><span class="legend-color" style="background-color: red;"></span>1 - Punto fuera de límites</div>
-      <div class="legend-item"><span class="legend-color" style="background-color: rgb(217, 255, 0);"></span>2 - 4 puntos consecutivos mismo lado</div>
-      <div class="legend-item"><span class="legend-color" style="background-color: rgb(214, 87, 151);"></span>3 - 8 puntos alternando lados</div>
+      <div class="legend-item"><span class="legend-color" style="background-color: rgb(217, 255, 0);"></span>2 - 7 puntos consecutivos mismo lado</div>
+      <div class="legend-item"><span class="legend-color" style="background-color: rgb(214, 87, 151);"></span>3 - 14 puntos alternando lados</div>
     </div>
 
     <div class="chart-container">

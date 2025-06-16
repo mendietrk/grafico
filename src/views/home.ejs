@@ -53,7 +53,7 @@ document.getElementById('dbForm').addEventListener('submit', async (e) => {
             throw new Error(data.message || "Error de conexión");
         }
         
-        window.location.href = "/grafico2";
+        window.location.href = "/";
     } catch (err) {
         console.error("Error:", err);
         error.textContent = err.message;

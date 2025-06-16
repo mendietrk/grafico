@@ -276,6 +276,53 @@ const Actividad = require("../models/issues.js");
 const mongoose = require("mongoose");
 const Subgrupo = require('../models/Subgrupo');
 
+router.post('/subgrupo/importar2', async (req, res) => {
+  try {
+    const { pa6, pa7, datos } = req.body;
+
+    const lineas = datos.trim().split('\n');
+
+    let columnaUnica = [];
+
+    for (let linea of lineas) {
+      const valores = linea.trim().split('\t').map(Number).filter(v => !isNaN(v));
+
+      if (valores.length === 0) continue;
+
+      if (valores.length === 1) {
+        // Si es una sola columna, acumulamos
+        columnaUnica.push(valores[0]);
+      } else {
+        // Validar que el subgrupo tenga 5 muestras
+        if (valores.length === 5) {
+          await Subgrupo.create({
+            pa6,
+            pa7,
+            muestras: valores
+          });
+        }
+      }
+    }
+
+    // Procesar columna única en grupos de 5
+    for (let i = 0; i < columnaUnica.length; i += 5) {
+      const grupo = columnaUnica.slice(i, i + 5);
+      if (grupo.length === 5) {
+        await Subgrupo.create({
+          pa6,
+          pa7,
+          muestras: grupo
+        });
+      }
+    }
+
+    res.redirect('/sorpresa');
+  } catch (error) {
+    console.error('Error al importar subgrupos:', error);
+    res.status(500).send('Error al importar subgrupos.');
+  }
+});
+
 
 // Funciones auxiliares
 function promedio(arr) {
@@ -533,8 +580,8 @@ router.get('/grafico2', async (req, res) => {
           }
 
           // Regla 2: 4 puntos consecutivos arriba/abajo de la media
-          if (i >= 3) {
-            const segmento = datos.slice(i - 3, i + 1);
+          if (i >= 6) {
+            const segmento = datos.slice(i - 6, i + 1);
             const todosArriba = segmento.every(p => p > media);
             const todosAbajo = segmento.every(p => p < media);
             
@@ -545,8 +592,8 @@ router.get('/grafico2', async (req, res) => {
           }
 
           // Regla 3: 8 puntos alternando lados de la media
-          if (i >= 7) {
-            const segmento = datos.slice(i - 7, i + 1);
+          if (i >= 13) {
+            const segmento = datos.slice(i - 13, i + 1);
             let alternando = true;
             
             for (let j = 1; j < segmento.length; j++) {
