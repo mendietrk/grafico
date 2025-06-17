@@ -201,7 +201,17 @@
         </div>
       </div>
     </div>
-
+    <div style="border: 1px solid #aaa; border-radius: 8px; padding: 12px; margin-top: 20px; font-size: 12pt; max-width: 400px; background-color: #f8f8f8;">
+      <h3>Datos Estadísticos Calculados</h3>
+      <ul style="list-style-type: none; padding-left: 0;">
+        <li><strong>Media:</strong> <%= estadisticas.media?.toFixed(3) || 'N/A' %></li>
+        <li><strong>Límite Superior de Control (LSC):</strong> <%= estadisticas.lsc?.toFixed(3) || 'N/A' %></li>
+        <li><strong>Límite Inferior de Control (LIC):</strong> <%= estadisticas.lic?.toFixed(3) || 'N/A' %></li>
+        <li><strong>Desviación Estándar:</strong> <%= estadisticas.desviacion?.toFixed(3) || 'N/A' %></li>
+       
+      </ul>
+    </div>
+    
     <script>
       const datosIndividuales = <%- JSON.stringify(datosIndividuales) %>;
       const rangosMoviles = <%- JSON.stringify(rangosMoviles) %>;

@@ -513,112 +513,131 @@ router.get('/grafico', async (req, res) => {
 router.get('/grafico2', async (req, res) => {
   try {
     const { pa6, pa7 } = req.query;
+    const partes = await Subgrupo.find(); // Para llenar los selects
 
-    // Traer todos los pares pa6 / pa7 únicos
-    const partes = await Subgrupo.find({}, 'pa6 pa7');
-
-    // Construir filtro dinámico si se seleccionaron valores
-    const filtro = {};
-    if (pa6) filtro.pa6 = pa6;
-    if (pa7) filtro.pa7 = pa7;
-
-    // Obtener todos los subgrupos ordenados por fecha
-    const subgrupos = await Subgrupo.find(filtro).sort({ fecha: 1 });
-
-    let datosIndividuales = [];
-    let rangosMoviles = [];
-    let limites = null;
-    let reglasVioladas = [];
-
-    if (subgrupos.length > 0) {
-      // Extraer todas las muestras individuales en orden secuencial
-      subgrupos.forEach(sg => {
-        datosIndividuales = datosIndividuales.concat(sg.muestras);
+    if (!pa6 || !pa7) {
+      return res.render('grafico2', {
+        partes,
+        pa6,
+        pa7,
+        datosIndividuales: [],
+        rangosMoviles: [],
+        limites: {},
+        reglasVioladas: [],
+        estadisticas: null
       });
-
-      // Calcular rangos móviles (diferencias absolutas entre puntos consecutivos)
-      for (let i = 1; i < datosIndividuales.length; i++) {
-        const rangoMovil = Math.abs(datosIndividuales[i] - datosIndividuales[i - 1]);
-        rangosMoviles.push(rangoMovil);
-      }
-
-      // Calcular límites de control para gráficos I-MR
-      const mediaIndividuales = promedio(datosIndividuales);
-      const rangoMovilPromedio = promedio(rangosMoviles);
-
-      // Constantes para gráficos I-MR
-      const E2 = 2.66; // Factor para límites de control de valores individuales
-      const D3 = 0;    // Para n=2 (rangos móviles)
-      const D4 = 3.267; // Para n=2 (rangos móviles)
-
-      limites = {
-        i: {
-          central: mediaIndividuales,
-          superior: mediaIndividuales + E2 * rangoMovilPromedio,
-          inferior: mediaIndividuales - E2 * rangoMovilPromedio
-        },
-        mr: {
-          central: rangoMovilPromedio,
-          superior: D4 * rangoMovilPromedio,
-          inferior: D3 * rangoMovilPromedio
-        }
-      };
-
-      // Función para evaluar reglas de control
-      const evaluarReglas = (datos, limites) => {
-        const resultados = Array(datos.length).fill(0);
-        const media = limites.i.central;
-        const lsc = limites.i.superior;
-        const lic = limites.i.inferior;
-
-        // Evaluar cada punto
-        for (let i = 0; i < datos.length; i++) {
-          // Regla 1: Puntos fuera de los límites de control
-          if (datos[i] > lsc || datos[i] < lic) {
-            resultados[i] = 1;
-            continue;
-          }
-
-          // Regla 2: 4 puntos consecutivos arriba/abajo de la media
-          if (i >= 6) {
-            const segmento = datos.slice(i - 6, i + 1);
-            const todosArriba = segmento.every(p => p > media);
-            const todosAbajo = segmento.every(p => p < media);
-            
-            if (todosArriba || todosAbajo) {
-              resultados[i] = 2;
-              continue;
-            }
-          }
-
-          // Regla 3: 8 puntos alternando lados de la media
-          if (i >= 13) {
-            const segmento = datos.slice(i - 13, i + 1);
-            let alternando = true;
-            
-            for (let j = 1; j < segmento.length; j++) {
-              const actual = segmento[j] > media;
-              const anterior = segmento[j - 1] > media;
-              
-              if (actual === anterior) {
-                alternando = false;
-                break;
-              }
-            }
-            
-            if (alternando) {
-              resultados[i] = 3;
-            }
-          }
-        }
-
-        return resultados;
-      };
-
-      // Evaluar reglas para los datos individuales
-      reglasVioladas = evaluarReglas(datosIndividuales, limites);
     }
 
+    // Obtener subgrupos para el número de parte y versión seleccionados
+    const subgrupos = await Subgrupo.find({ 'pa6': pa6, 'pa7': pa7 });
+
+    const datosIndividuales = subgrupos.flatMap(sg => sg.muestras || []);
+
+    if (datosIndividuales.length === 0) {
+      return res.render('grafico2', {
+        partes,
+        pa6,
+        pa7,
+        datosIndividuales: [],
+        rangosMoviles: [],
+        limites: {},
+        reglasVioladas: [],
+        estadisticas: null
+      });
+    }
+
+    // Calcular rangos móviles
+    const rangosMoviles = [];
+    for (let i = 1; i < datosIndividuales.length; i++) {
+      rangosMoviles.push(Math.abs(datosIndividuales[i] - datosIndividuales[i - 1]));
+    }
+
+    // Calcular límites de control
+    const mediaI = datosIndividuales.reduce((a, b) => a + b, 0) / datosIndividuales.length;
+    const promedioMR = rangosMoviles.reduce((a, b) => a + b, 0) / rangosMoviles.length;
+    const d2 = 1.128; // para n=2
+
+    const sigma = promedioMR / d2;
+
+    const limites = {
+      i: {
+        central: mediaI,
+        superior: mediaI + 3 * sigma,
+        inferior: mediaI - 3 * sigma
+      },
+      mr: {
+        central: promedioMR,
+        superior: promedioMR * 3.267,
+        inferior: 0
+      }
+    };
+
+    // Evaluar reglas de control
+    const reglasVioladas = Array(datosIndividuales.length).fill(0);
+
+    // Regla 1: Punto fuera de límites
+    datosIndividuales.forEach((valor, i) => {
+      if (valor > limites.i.superior || valor < limites.i.inferior) {
+        reglasVioladas[i] = 1;
+      }
+    });
+
+    // Regla 2: 7 puntos consecutivos del mismo lado de la media
+    let count = 0;
+    let ladoAnterior = null;
+    for (let i = 0; i < datosIndividuales.length; i++) {
+      const actualLado = datosIndividuales[i] > mediaI ? 'arriba' : 'abajo';
+      if (actualLado === ladoAnterior) {
+        count++;
+        if (count >= 6) {
+          for (let j = i - 6; j <= i; j++) reglasVioladas[j] = 2;
+        }
+      } else {
+        count = 0;
+      }
+      ladoAnterior = actualLado;
+    }
+
+    // Regla 3: 14 puntos alternando lados
+    let alternancia = 0;
+    for (let i = 1; i < datosIndividuales.length; i++) {
+      const ladoActual = datosIndividuales[i] > mediaI ? 'arriba' : 'abajo';
+      const ladoPrevio = datosIndividuales[i - 1] > mediaI ? 'arriba' : 'abajo';
+      if (ladoActual !== ladoPrevio) {
+        alternancia++;
+        if (alternancia >= 13) {
+          for (let j = i - 13; j <= i; j++) reglasVioladas[j] = 3;
+        }
+      } else {
+        alternancia = 0;
+      }
+    }
+
+    // Cálculo de estadísticas generales
+    const especSuperior = limites.i.superior;
+    const especInferior = limites.i.inferior;
+
+    const desviacion = sigma;
+    const cpk = Math.min(
+      (especSuperior - mediaI) / (3 * desviacion),
+      (mediaI - especInferior) / (3 * desviacion)
+    );
+
+    const ppk = Math.min(
+      (especSuperior - mediaI) / (3 * desviacion),
+      (mediaI - especInferior) / (3 * desviacion)
+    );
+
+    const estadisticas = {
+      media: mediaI,
+      lsc: especSuperior,
+      lic: especInferior,
+      desviacion,
+      cpk,
+      ppk
+    };
+
+    // Renderizar vista
     res.render('grafico2', {
       partes,
       pa6,
@@ -626,12 +645,13 @@ router.get('/grafico2', async (req, res) => {
       datosIndividuales,
       rangosMoviles,
       limites,
-      reglasVioladas
+      reglasVioladas,
+      estadisticas
     });
 
   } catch (error) {
-    console.error('Error al generar gráficos I-MR:', error);
-    res.status(500).send('Error al generar gráficos de datos individuales');
+    console.error('Error al generar gráfico:', error);
+    res.status(500).send('Error interno del servidor.');
   }
 });
 
