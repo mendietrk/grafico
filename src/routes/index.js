@@ -814,6 +814,46 @@ router.post('/parimpar', (req, res) => {
   res.render('parimpar', { listaFinal: combinados });
 });
 
+router.post('/parimpar1', (req, res) => {
+  const datosOrdenados = JSON.parse(req.body.datosOrdenados || '[]');
+
+  // 1. Separar en pares e impares por índice
+  const pares = [];
+  const impares = [];
+
+  datosOrdenados.forEach((valor, index) => {
+    if (index % 2 === 0) {
+      pares.push(valor);
+    } else {
+      impares.push(valor);
+    }
+  });
+
+  // 2. Barajar cada grupo
+  const paresAleatorios = shuffle(pares);
+  const imparesAleatorios = shuffle(impares);
+
+  // 3. Combinar los datos en el nuevo patrón: 2 impares, 3 pares, 3 impares, 2 pares
+  const combinados = [];
+let impIndex = 0;
+let parIndex = 0;
+
+while (impIndex < imparesAleatorios.length || parIndex < paresAleatorios.length) {
+  // Agregar uno de los impares si quedan
+  if (impIndex < imparesAleatorios.length) {
+    combinados.push(imparesAleatorios[impIndex]);
+    impIndex++;
+  }
+
+  // Agregar uno de los pares si quedan
+  if (parIndex < paresAleatorios.length) {
+    combinados.push(paresAleatorios[parIndex]);
+    parIndex++;
+  }
+}
+  res.render('parimpar', { listaFinal: combinados });
+});
+
 
 // Recibir en random
 
