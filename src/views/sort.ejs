@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Datos Ordenados</title>
+  <title>Datos Ordenados y Ajuste</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -56,7 +56,17 @@
       background-color: #0056b3;
     }
     form {
-      display: inline-block;
+      margin-top: 30px;
+    }
+    input[type="number"] {
+      width: 80px;
+      margin-right: 10px;
+    }
+    pre {
+      background: #f0f0f0;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 20px;
     }
   </style>
 </head>
@@ -82,6 +92,59 @@
     <input type="hidden" name="datosOrdenados" value='<%- JSON.stringify(sorted) %>' />
     <button type="submit" class="button">➡ Ver Pares e Impares Aleatorios</button>
   </form>
+
+  <!-- Sección de ajuste por desviación estándar -->
+  <h2>Ajustar Datos por Desviación Estándar</h2>
+  <form onsubmit="ajustarDatos(event)">
+    <label>Número de veces la desviación estándar:</label>
+    <input type="number" id="veces" value="1" step="0.1" required>
+
+    <label>Desde el menor (cantidad):</label>
+    <input type="number" id="menor" value="2" required>
+
+    <label>Desde el mayor (cantidad):</label>
+    <input type="number" id="mayor" value="2" required>
+
+    <input type="hidden" id="datosJSON" value='<%- JSON.stringify(sorted) %>'>
+    <button type="submit" class="button">⚙ Aplicar Ajuste</button>
+  </form>
+
+  <pre id="resultado"></pre>
+
+  <script>
+    function ajustarDatos(event) {
+      event.preventDefault();
+  
+      const veces = parseFloat(document.getElementById('veces').value);
+      const menor = parseInt(document.getElementById('menor').value);
+      const mayor = parseInt(document.getElementById('mayor').value);
+      const datos = JSON.parse(document.getElementById('datosJSON').value);
+  
+      const n = datos.length;
+      const media = datos.reduce((s, v) => s + v, 0) / n;
+      const varianza = datos.reduce((s, v) => s + Math.pow(v - media, 2), 0) / n;
+      const desv = Math.sqrt(varianza);
+  
+      const ajustados = [...datos];
+  
+      for (let i = 0; i < menor && i < n; i++) {
+        ajustados[i] += veces * desv;
+      }
+      for (let i = n - mayor; i < n; i++) {
+        ajustados[i] -= veces * desv;
+      }
+  
+      const resultado = `
+  Desviación estándar: ${desv.toFixed(4)}
+  Media: ${media.toFixed(4)}
+  
+  Datos ajustados (una línea por celda, listo para pegar en Excel):
+  ${ajustados.map(x => x.toFixed(3)).join('\n')}
+      `;
+  
+      document.getElementById('resultado').textContent = resultado.trim();
+    }
+  </script>
   
 
   <% } else { %>
@@ -89,6 +152,7 @@
   <% } %>
 </body>
 </html>
+
 
 
 

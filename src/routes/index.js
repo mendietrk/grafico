@@ -276,6 +276,33 @@ const Actividad = require("../models/issues.js");
 const mongoose = require("mongoose");
 const Subgrupo = require('../models/Subgrupo');
 
+router.get('/show1', async (req, res) => {
+  const { pa6, pa7 } = req.query;
+
+  const partes = await Subgrupo.find().select('pa6 pa7');
+  let subgrupos = [];
+  let datosIndividuales = [];
+
+  if (pa6) {
+    let filtro = { pa6 };
+    if (pa7 && pa7 !== 'N/A') {
+      filtro.pa7 = pa7;
+    } else if (pa7 === 'N/A') {
+      filtro.pa7 = null;
+    }
+
+    subgrupos = await Subgrupo.find(filtro).sort({ fecha: 1 });
+    datosIndividuales = subgrupos.flatMap(sg => sg.muestras);
+  }
+
+  res.render('ajuste', {
+    partes,
+    pa6,
+    pa7,
+    datosIndividuales
+  });
+});
+
 router.post('/subgrupo/importar2', async (req, res) => {
   try {
     const { pa6, pa7, datos } = req.body;
@@ -637,7 +664,7 @@ router.get('/grafico2', async (req, res) => {
       ppk
     };
 
-    // Renderizar vista
+    
     res.render('grafico2', {
       partes,
       pa6,
@@ -660,7 +687,7 @@ router.get('/subgrupos', async (req, res) => {
   res.render('listaSubgrupos', { subgrupos });
 });
 
-// Ruta que muestra la vista show.ejs
+
 router.get('/show', async (req, res) => {
   const { pa6, pa7 } = req.query;
 
